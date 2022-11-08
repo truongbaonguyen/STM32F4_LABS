@@ -171,8 +171,7 @@ int main(void)
 		  count = (count == 1) ? 10 : count - 1;
 		  Effect(state, count);
 	  }
-
-	  if (HAL_GPIO_ReadPin(KEY1_GPIO_Port, KEY1_Pin) == 0)
+	  else if (HAL_GPIO_ReadPin(KEY1_GPIO_Port, KEY1_Pin) == 0)
 	  {
 		  while (HAL_GPIO_ReadPin(KEY1_GPIO_Port, KEY1_Pin) == 0) // doi key1 duoc tha ra
 		  {
@@ -267,7 +266,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 8400;
+  htim3.Init.Prescaler = 8399;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 65535;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
