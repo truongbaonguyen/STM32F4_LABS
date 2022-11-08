@@ -39,6 +39,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim3;
 
 /* USER CODE BEGIN PV */
 
@@ -47,12 +48,65 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+void Delay_100ms(void)
+{
+	__HAL_TIM_SetCounter(&htim3, 0);
+	while (__HAL_TIM_GetCounter(&htim3) < 1000); //clock timer 10Khz
+}
+
+void Delay_X00ms(int times)
+{
+	int i = 0;
+	for(i = 0; i < times; i++)
+	{
+		Delay_100ms();
+	}
+}
+
+void Reset_LEDs()
+{
+	HAL_GPIO_WritePin(GPIOB, LED0_Pin | LED1_Pin | LED2_Pin | LED3_Pin, GPIO_PIN_RESET);
+}
+
+void Effect1(int period)
+{
+	Reset_LEDs();
+	for (uint8_t i = 0; i < 6; i++)
+	{
+		HAL_GPIO_TogglePin(GPIOB, LED0_Pin | LED1_Pin | LED2_Pin | LED3_Pin);
+		Delay_X00ms(period);
+	}
+	Reset_LEDs();
+}
+
+void Effect2(int period)
+{
+	HAL_GPIO_WritePin(GPIOB, LED0_Pin, GPIO_PIN_SET);
+	Delay_X00ms(period);
+	HAL_GPIO_WritePin(GPIOB, LED0_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, LED1_Pin, GPIO_PIN_SET);
+	Delay_X00ms(period);
+	HAL_GPIO_WritePin(GPIOB, LED1_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, LED2_Pin, GPIO_PIN_SET);
+	Delay_X00ms(period);
+	HAL_GPIO_WritePin(GPIOB, LED2_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, LED3_Pin, GPIO_PIN_SET);
+	Delay_X00ms(period);
+	Reset_LEDs();
+}
+
+void Effect(int state, int period)
+{
+	(state == 1) ? Effect1(period) : Effect2(period);
+}
 
 /* USER CODE END 0 */
 
@@ -63,7 +117,9 @@ static void MX_GPIO_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	uint8_t state = 1; 	// trang thai cua hieu ung
+	uint8_t flag = 0; 	// co kiem tra truong hop 2 key duoc nhan
+	uint8_t count = 5;	// period level
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -84,20 +140,59 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_TIM_Base_Start_IT(&htim3);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
-	  if (HAL_GPIO_ReadPin(BUTTON_GPIO_Port, BUTTON_Pin) == 0)
+	  if (HAL_GPIO_ReadPin(KEY0_GPIO_Port, KEY0_Pin) == 0)
 	  {
-		  while (HAL_GPIO_ReadPin(BUTTON_GPIO_Port, BUTTON_Pin) == 0); // chong nhieu cho nut nhan
-		  HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin); // dao trang thai LED khi tha nut nhan
-		  HAL_Delay(10);
+		  while (HAL_GPIO_ReadPin(KEY0_GPIO_Port, KEY0_Pin) == 0) // doi key0 duoc tha ra
+		  {
+			  if (HAL_GPIO_ReadPin(KEY1_GPIO_Port, KEY1_Pin) == 0)
+			  {
+				  state = (state == 0) ? 1 : 0;
+				  flag = 1;
+				  while (HAL_GPIO_ReadPin(KEY1_GPIO_Port, KEY1_Pin) == 0); // doi key1 duoc tha ra
+			  }
+		  }
+
+		  if (flag == 1)
+		  {
+			  Effect(state, count);
+			  flag = 0;
+			  continue;
+		  }
+
+		  count = (count == 1) ? 10 : count - 1;
+		  Effect(state, count);
+	  }
+
+	  if (HAL_GPIO_ReadPin(KEY1_GPIO_Port, KEY1_Pin) == 0)
+	  {
+		  while (HAL_GPIO_ReadPin(KEY1_GPIO_Port, KEY1_Pin) == 0) // doi key1 duoc tha ra
+		  {
+			  if (HAL_GPIO_ReadPin(KEY0_GPIO_Port, KEY0_Pin) == 0)
+			  {
+				  state = (state == 0) ? 1 : 0;
+				  flag = 1;
+				  while (HAL_GPIO_ReadPin(KEY0_GPIO_Port, KEY0_Pin) == 0); // doi key0 duoc tha ra
+			  }
+		  }
+
+		  if (flag == 1)
+		  {
+			  Effect(state, count);
+			  flag = 0;
+			  continue;
+		  }
+
+		  count = (count == 10) ? 1 : count + 1;
+		  Effect(state, count);
 	  }
 
     /* USER CODE END WHILE */
@@ -154,6 +249,51 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 8400;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 65535;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -170,11 +310,11 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LED0_Pin|LED1_Pin|LED2_Pin|LED3_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : BUTTON_Pin */
-  GPIO_InitStruct.Pin = BUTTON_Pin;
+  /*Configure GPIO pins : KEY0_Pin KEY1_Pin */
+  GPIO_InitStruct.Pin = KEY0_Pin|KEY1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(BUTTON_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : LED0_Pin LED1_Pin LED2_Pin LED3_Pin */
   GPIO_InitStruct.Pin = LED0_Pin|LED1_Pin|LED2_Pin|LED3_Pin;
